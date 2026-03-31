@@ -47,7 +47,7 @@ About product versions:
 - Each must be a functioning product in itself.
 - Test each version upon completing, before proceeding to the next one.
 
-In the first version, give priority to features that deliver the most value to end users and are easier to implement. 
+First version must do one core thing well. Pick what brings the most value to end-user and is easier to implement. 
 
 #### Task 4 (product version 1 approved by TA during the lab).
 - Implement the core features outlined in the plan
