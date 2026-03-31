@@ -42,12 +42,12 @@ Produce a plan including:
 - prioritized requirements;
 - a clear breakdown of requirements into **three product versions.**
 
-Each product version builds upon the previous.
-Each version must be a functioning product in itself.
-Test each version upon completing, before proceeding to the next one.
+About product versions:
+- Each product version builds upon the previous.
+- Each must be a functioning product in itself.
+- Test each version upon completing, before proceeding to the next one.
 
 In the first version, give priority to features that deliver the most value to end users and are easier to implement. 
-
 
 #### Task 4 (product version 1 approved by TA during the lab).
 - Implement the core features outlined in the plan
@@ -55,8 +55,8 @@ In the first version, give priority to features that deliver the most value to e
 - Dockerize all services.
 - Deploy it to be accessible to use.
 
-Product versions 2 and 3 can be done during the lab or after the lab.
-Version 1 must be shown and approved by the TA during the lab.
+Version 1 must be shown and approved by the TA during the lab. Product versions 2 and 3 can be done during the lab or after the lab.
+
 
 #### Task 5.
 Submit presentation with five slides:
