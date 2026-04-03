@@ -118,7 +118,7 @@ Submit a presentation with five slides:
 
 1. Demo:
 
-- Pre-recorded video demonstration of Product version 2 with pre-recorded voice commentary (no longer than 2 minutes).
+- Pre-recorded video demonstration of Version 2 with voice-over (no longer than 2 minutes).
 - _Note:_ **This is the most important part of the presentation**.
 
 1. Links:
