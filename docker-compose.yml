@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lms
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - lms-network
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/lms
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - lms-network
+
+  qwen-proxy:
+    image: se-toolkit-lab-8-qwen-code-api:latest
+    environment:
+      - PORT=8080
+      - ADDRESS=0.0.0.0
+      - DEFAULT_MODEL=coder-model
+      - LOG_LEVEL=error
+      - MAX_RETRIES=5
+      - RETRY_DELAY_MS=1000
+      - LOG_REQUESTS=true
+      - QWEN_CODE_AUTH_USE=true
+      - QWEN_CODE_API_KEY=my-secret-qwen-key
+    volumes:
+      - /root/se-toolkit-lab-8/.qwen:/mnt/qwen-creds:ro
+    networks:
+      - lms-network
+
+  nanobot:
+    build: ./nanobot
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE}
+      LLM_MODEL: ${LLM_MODEL}
+      API_BASE_URL: http://backend:8000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+      - qwen-proxy
+    networks:
+      - lms-network
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    ports:
+      - "80:80"
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    name: lms-network
