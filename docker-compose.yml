@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lms
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - lms-network
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/lms
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - lms-network
+
+  nanobot:
+    build: ./nanobot
+    environment:
+      OPENAI_API_KEY: ${LLM_API_KEY:-no-key}
+      OPENAI_API_BASE: ${LLM_API_BASE:-http://localhost:8080/v1}
+      LLM_MODEL: ${LLM_MODEL:-coder-model}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - lms-network
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    ports:
+      - "80:80"
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge
