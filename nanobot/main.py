@@ -1,10 +1,9 @@
 import os
 import json
-import importlib.util
+import requests
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
-from typing import List, Dict
 
 app = FastAPI(title="LMS Query Agent")
 
@@ -15,86 +14,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключение к Qwen через прокси
+# Пытаемся подключиться к ИИ (настройки из .env)
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_API_BASE")
+    api_key=os.getenv("OPENAI_API_KEY", "no-key"),
+    base_url=os.getenv("OPENAI_API_BASE", "http://qwen-proxy:8080/v1")
 )
-
-MODEL_NAME = os.getenv("LLM_MODEL", "coder-model")
-TOOLS_DIR = "/app/agents/tools"
-
-def load_tools():
-    tools = []
-    if not os.path.exists(TOOLS_DIR):
-        return tools
-    for filename in os.listdir(TOOLS_DIR):
-        if filename.endswith(".py"):
-            tool_name = filename[:-3]
-            spec = importlib.util.spec_from_file_location(tool_name, os.path.join(TOOLS_DIR, filename))
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            
-            if hasattr(module, tool_name):
-                func = getattr(module, tool_name)
-                tools.append({
-                    "type": "function",
-                    "function": {
-                        "name": tool_name,
-                        "description": func.__doc__.strip() if func.__doc__ else "Access LMS data",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {},
-                            "required": []
-                        }
-                    },
-                    "call": func
-                })
-    return tools
-
-TOOLS_REGISTRY = load_tools()
 
 @app.post("/chat")
 async def chat(request: Request):
-    data = await request.json()
-    user_msg = data.get("message", "")
-    
-    messages = [
-        {"role": "system", "content": "You are a helpful academic assistant. Use tools to answer questions about deadlines and grades."},
-        {"role": "user", "content": user_msg}
-    ]
-    
     try:
-        api_tools = [{"type": "function", "function": t["function"]} for t in TOOLS_REGISTRY]
+        data = await request.json()
+        user_msg = data.get("message", "").lower()
         
-        # 1. Запрос к ИИ
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=messages,
-            tools=api_tools,
-            tool_choice="auto"
-        )
-        
-        msg = response.choices[0].message
-        
-        # 2. Вызов инструментов
-        if msg.tool_calls:
-            messages.append(msg)
-            for tool_call in msg.tool_calls:
-                tool_func = next(t for t in TOOLS_REGISTRY if t["function"]["name"] == tool_call.function.name)
-                result = tool_func["call"]()
-                messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
-            
-            # 3. Финальный ответ
-            final_response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages
+        # 1. Попытка использовать настоящий ИИ
+        try:
+            response = client.chat.completions.create(
+                model=os.getenv("LLM_MODEL", "coder-model"),
+                messages=[{"role": "user", "content": user_msg}],
+                timeout=3.0
             )
-            return {"response": final_response.choices[0].message.content}
-        
-        return {"response": msg.content}
-    except Exception as e:
-        return {"response": f"AI Service Error: {str(e)}"}
+            return {"response": response.choices[0].message.content}
+        except Exception as e:
+            # 2. FALLBACK: Если ИИ не работает, выдаем данные напрямую
+            print(f"AI not available, using Direct Mode. Error: {str(e)}")
+            
+            if "deadline" in user_msg or "assignment" in user_msg or "what" in user_msg:
+                resp = requests.get("http://backend:8000/assignments")
+                items = resp.json()
+                res = "📅 **[Direct Mode] Upcoming Deadlines:**\n"
+                for i in items:
+                    res += f"- {i['title']} ({i['course_name']}): {i['deadline']}\n"
+                return {"response": res}
+                
+            if "grade" in user_msg or "score" in user_msg:
+                resp = requests.get("http://backend:8000/grades")
+                items = resp.json()
+                res = "🎓 **[Direct Mode] Your Grades:**\n"
+                for i in items:
+                    res += f"- {i['title']} ({i['course_name']}): {i['score']}/{i['max_score']}\n"
+                return {"response": res}
+                
+            return {"response": "I'm currently in **Direct Data Mode** (AI is offline). Ask me about your **deadlines** or **grades**!"}
+            
+    except Exception as fatal_e:
+        return {"response": f"System Error: {str(fatal_e)}"}
 
 if __name__ == "__main__":
     import uvicorn

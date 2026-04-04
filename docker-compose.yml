@@ -23,35 +23,16 @@ services:
     networks:
       - lms-network
 
-  qwen-proxy:
-    image: se-toolkit-lab-8-qwen-code-api:latest
-    environment:
-      - PORT=8080
-      - ADDRESS=0.0.0.0
-      - DEFAULT_MODEL=coder-model
-      - LOG_LEVEL=error
-      - MAX_RETRIES=5
-      - RETRY_DELAY_MS=1000
-      - LOG_REQUESTS=true
-      - QWEN_CODE_AUTH_USE=true
-      - QWEN_CODE_API_KEY=my-secret-qwen-key
-    volumes:
-      - /root/se-toolkit-lab-8/.qwen:/mnt/qwen-creds:ro
-    networks:
-      - lms-network
-
   nanobot:
     build: ./nanobot
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_API_BASE: ${OPENAI_API_BASE}
-      LLM_MODEL: ${LLM_MODEL}
-      API_BASE_URL: http://backend:8000
+      OPENAI_API_KEY: ${LLM_API_KEY:-no-key}
+      OPENAI_API_BASE: ${LLM_API_BASE:-http://localhost:8080/v1}
+      LLM_MODEL: ${LLM_MODEL:-coder-model}
     ports:
       - "8080:8080"
     depends_on:
       - backend
-      - qwen-proxy
     networks:
       - lms-network
 
@@ -66,4 +47,4 @@ services:
 
 networks:
   lms-network:
-    name: lms-network
+    driver: bridge
