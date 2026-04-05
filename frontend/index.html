@@ -43,14 +43,19 @@
         <div id="tab-dash" class="tab-content-area active">
             <h2 class="fw-bold mb-4">Academic Overview</h2>
             <div class="row">
-                <div class="col-md-7">
+                <div class="col-md-5">
                     <h5 class="mb-3 text-muted">Upcoming Deadlines</h5>
                     <div id="deadlineContainer">Loading...</div>
                 </div>
-                <div class="col-md-5">
-                    <h5 class="mb-3 text-muted">Performance Over Time</h5>
+                <div class="col-md-7">
+                    <h5 class="mb-3 text-muted">Performance Trend</h5>
                     <div class="card">
                         <canvas id="gradeChart"></canvas>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4 text-muted">Assignment Status</h5>
+                    <div class="card mx-auto" style="max-width: 400px;">
+                        <canvas id="statusChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -58,7 +63,10 @@
 
         <!-- Courses -->
         <div id="tab-courses" class="tab-content-area">
-            <h2 class="fw-bold mb-4">Course Management</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold mb-0">Course Management</h2>
+                <button class="btn btn-primary" onclick="addCourse()"><i class="fas fa-plus me-2"></i>Add Course</button>
+            </div>
             <div id="coursesContainer">Loading courses...</div>
         </div>
     </div>
@@ -79,6 +87,7 @@
     <script>
         const API = `http://${window.location.hostname}:8000`;
         let myChart;
+        let statusChart;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content-area').forEach(t => t.classList.remove('active'));
@@ -94,8 +103,8 @@
             if (tabId === 'courses') loadCourses();
         }
 
-        function updateChart(courses) {
-            const ctx = document.getElementById('gradeChart').getContext('2d');
+        function updateCharts(courses) {
+            const ctxTrend = document.getElementById('gradeChart').getContext('2d');
             let dataPoints = [];
             courses.forEach(c => {
                 c.assignments.forEach(a => {
@@ -107,7 +116,7 @@
             dataPoints.sort((a, b) => a.x - b.x);
 
             if (myChart) myChart.destroy();
-            myChart = new Chart(ctx, {
+            myChart = new Chart(ctxTrend, {
                 type: 'line',
                 data: {
                     datasets: [{
@@ -120,9 +129,68 @@
                     }]
                 },
                 options: {
+                    plugins: { legend: { display: false } },
                     scales: {
                         x: { type: 'time', time: { unit: 'day' } },
                         y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            // Status Distribution Chart Logic
+            const now = new Date();
+            let graded = { count: 0, items: [] };
+            let upcoming = { count: 0, items: [] };
+            let overdue = { count: 0, items: [] };
+
+            courses.forEach(c => {
+                c.assignments.forEach(a => {
+                    if (a.score !== null) {
+                        graded.count++;
+                        graded.items.push(`${a.title} (${c.course_info.name})`);
+                    } else if (new Date(a.deadline) < now) {
+                        overdue.count++;
+                        overdue.items.push(`${a.title} (${c.course_info.name})`);
+                    } else {
+                        upcoming.count++;
+                        upcoming.items.push(`${a.title} (${c.course_info.name})`);
+                    }
+                });
+            });
+
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            if (statusChart) statusChart.destroy();
+            statusChart = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Graded', 'Upcoming', 'Overdue'],
+                    datasets: [{
+                        data: [graded.count, upcoming.count, overdue.count],
+                        backgroundColor: ['#10b981', '#4f46e5', '#ef4444'],
+                        borderWidth: 0
+                    }],
+                    details: [graded.items, upcoming.items, overdue.items]
+                },
+                options: {
+                    cutout: '70%',
+                    maintainAspectRatio: true,
+                    aspectRatio: 1.5,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}`;
+                                },
+                                afterLabel: function(context) {
+                                    const items = context.chart.data.details[context.dataIndex];
+                                    if (!items || items.length === 0) return '';
+                                    const result = items.slice(0, 5).map(str => " • " + str);
+                                    if (items.length > 5) result.push("   ...and " + (items.length - 5) + " more");
+                                    return result;
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -156,7 +224,7 @@
             try {
                 const resp = await fetch(`${API}/courses/performance`);
                 const data = await resp.json();
-                updateChart(data);
+                updateCharts(data);
             } catch (e) { console.error(e); }
         }
 
@@ -164,12 +232,14 @@
             try {
                 const resp = await fetch(`${API}/courses/performance`);
                 const data = await resp.json();
-                refreshPerformance();
-                document.getElementById('coursesContainer').innerHTML = data.map(c => `
+                updateCharts(data);
+                document.getElementById('coursesContainer').innerHTML = data.map(c => {
+                    const currentScore = c.course_info.current_weighted_score !== null ? parseFloat(c.course_info.current_weighted_score).toFixed(1) : "0.0";
+                    return `
                     <div class="card">
                         <div class="d-flex justify-content-between mb-3">
                             <h4 class="fw-bold mb-0">${c.course_info.name}</h4>
-                            <div class="h4 text-primary mb-0">${parseFloat(c.course_info.current_weighted_score).toFixed(1)}%</div>
+                            <div class="h4 text-primary mb-0">${currentScore}%</div>
                         </div>
                         <div class="d-flex gap-2 mb-3">
                             ${c.thresholds.map(t => `<span class="badge bg-light text-dark border">${t.grade_letter}: ${t.min_score}% <i class="fas fa-edit ms-1 pointer" onclick="editThreshold(${c.course_info.id},'${t.grade_letter}',${t.min_score})"></i></span>`).join('')}
@@ -186,23 +256,57 @@
                                     </div>
                                 </div>`).join('')}
                         </div>
-                    </div>`).join('');
+                    </div>`}).join('') || '<p class="text-center text-muted">No courses yet. Click "Add Course" to start.</p>';
             } catch (e) { console.error(e); }
         }
 
+        async function addCourse() {
+            const name = prompt("Course Name (e.g., Computer Science):");
+            if (name) {
+                const response = await fetch(`${API}/courses/add`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, code: null })
+                });
+                if (response.ok) {
+                    loadCourses();
+                } else {
+                    const err = await response.json();
+                    alert("Error adding course: " + (err.detail || "Unknown error"));
+                }
+            }
+        }
+
         async function editThreshold(course_id, grade_letter, min_score) {
-            const score = prompt(`New score for ${grade_letter}:`, min_score);
-            if (score && !isNaN(score)) {
-                await fetch(`${API}/update/threshold`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({course_id, grade_letter, min_score: parseInt(score)}) });
-                loadCourses();
+            const scoreInput = prompt(`New minimum score for ${grade_letter}:`, min_score);
+            if (scoreInput !== null) {
+                const score = parseInt(scoreInput);
+                if (isNaN(score) || score < 0 || score > 100) {
+                    alert("Please enter a valid number (0-100).");
+                    return;
+                }
+                const response = await fetch(`${API}/update/threshold`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({course_id, grade_letter, min_score: score}) 
+                });
+                
+                if (response.ok) {
+                    loadCourses();
+                } else {
+                    const err = await response.json();
+                    alert("Error updating threshold: " + (err.detail || "Unknown error"));
+                }
             }
         }
 
         async function addActivity(course_id) {
             const title = prompt("Title:");
             const weight = prompt("Weight (0.1 = 10%):");
-            const date = prompt("Date (YYYY-MM-DD):");
-            if (title && weight && date) {
+            const dateInput = prompt("Date (YYYY-MM-DD):");
+            if (title && weight && dateInput) {
+                // Handle both date-only and potentially partial datetime inputs
+                const deadline = dateInput.includes(':') ? dateInput : `${dateInput} 23:59:00`;
                 const response = await fetch(`${API}/add/assignment`, { 
                     method: 'POST', 
                     headers: {'Content-Type': 'application/json'}, 
@@ -210,24 +314,43 @@
                         course_id: parseInt(course_id), 
                         title: title, 
                         weight: parseFloat(weight), 
-                        deadline: date + " 23:59:00"
+                        deadline: deadline
                     }) 
                 });
                 if (response.ok) {
                     loadCourses();
                     loadDeadlines();
                 } else {
-                    alert("Error adding activity. Check date format or weight.");
+                    const errorData = await response.json();
+                    alert("Error adding activity: " + (errorData.detail || "Check date format or weight."));
                 }
             }
         }
 
         async function editActivity(id, title, score) {
-            const nScore = prompt(`Score for ${title}:`, score || '');
+            const currentScoreStr = (score !== null && score !== undefined) ? score.toString() : '';
+            const nScore = prompt(`Score for ${title} (0-100, leave empty to remove):`, currentScoreStr);
+            
             if (nScore !== null) {
-                await fetch(`${API}/update/assignment`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id, score: nScore === '' ? null : parseFloat(nScore)}) });
-                loadCourses();
-                loadDeadlines();
+                const parsedScore = nScore === '' ? null : parseFloat(nScore);
+                if (parsedScore !== null && (isNaN(parsedScore) || parsedScore < 0 || parsedScore > 100)) {
+                    alert("Please enter a valid score between 0 and 100.");
+                    return;
+                }
+                
+                const response = await fetch(`${API}/update/assignment`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({id, score: parsedScore}) 
+                });
+                
+                if (response.ok) {
+                    loadCourses();
+                    loadDeadlines();
+                } else {
+                    const err = await response.json();
+                    alert("Error updating score: " + (err.detail || "Unknown error"));
+                }
             }
         }
 
