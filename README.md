@@ -33,6 +33,9 @@ LMS Smart Advisor provides a centralized platform that automates weighted GPA ca
   - **Priority Lists:** Identifies the most impactful upcoming tasks.
   - **Deadlines Overview:** Quick summary of pending and overdue work.
 
+> [!WARNING]
+> The chatbot is powered by Qwen, which requires to auth in and update tokens after a certain period of time via Autochecker bot! Therefore, this function may not work if TA checks it.
+
 ## Usage
 
 1. **Setup Courses:** Add your courses (e.g., "Mathematics", "Computer Science") in the Management tab.
