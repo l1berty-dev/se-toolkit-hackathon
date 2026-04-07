@@ -7,7 +7,7 @@ An intelligent academic assistant for planning studies, tracking weighted scores
 ![Dashboard Screenshot](docs/screenshots/dashboard.png)
 *The interactive dashboard showing performance dynamics and upcoming deadlines.*
 
-![AI Chat Screenshot](docs/screenshots/chat.png)
+<img src="docs/screenshots/chat.png" width="400" />
 *The AI Advisor providing grade forecasting and study recommendations.*
 
 ## Product Context
@@ -33,9 +33,6 @@ LMS Smart Advisor provides a centralized platform that automates weighted GPA ca
   - **Priority Lists:** Identifies the most impactful upcoming tasks.
   - **Deadlines Overview:** Quick summary of pending and overdue work.
 
-> [!WARNING]
-> The chatbot is powered by Qwen, which requires to auth in and update tokens after a certain period of time via Autochecker bot! Therefore, this function may not work if TA checks it.
-
 ## Usage
 
 1. **Setup Courses:** Add your courses (e.g., "Mathematics", "Computer Science") in the Management tab.
@@ -47,6 +44,9 @@ LMS Smart Advisor provides a centralized platform that automates weighted GPA ca
    - "Show me a progress report for all my courses."
 
 ## Deployment
+
+> [!WARNING]
+> The chatbot is powered by Qwen, which requires to auth in and update tokens after a certain period of time via Autochecker bot! Therefore, this function may not work if TA checks it.
 
 ### Operating System
 This system is designed to run on **Ubuntu 24.04** or any modern Linux distribution with Docker support.
@@ -78,7 +78,7 @@ The following tools must be installed on the VM:
    ```
 
 4. **Access the Services:**
-   - **Frontend:** [http://localhost](http://localhost) (Nginx)
+   - **Frontend:** [http://localhost](http://localhost)
    - **Backend API:** [http://localhost:8000](http://localhost:8000)
    - **AI Agent (Nanobot):** [http://localhost:8080](http://localhost:8080)
 
