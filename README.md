@@ -32,6 +32,8 @@ LMS Smart Advisor provides a centralized platform that automates weighted GPA ca
   - **Progress Reports:** Summarizes current standing and "best" performing courses.
   - **Priority Lists:** Identifies the most impactful upcoming tasks.
   - **Deadlines Overview:** Quick summary of pending and overdue work.
+### Not implemented
+- **Support for multiple users and authorization**
 
 ## Usage
 
